@@ -13,6 +13,7 @@ def plugin_unloaded():
 
 class Counter(sublime_plugin.EventListener):
 	def __init__(self):
+		self.is_active          = False
 		self.has_selection      = False
 		self.just_had_selection = False
 
@@ -55,20 +56,37 @@ class Counter(sublime_plugin.EventListener):
 		view.set_status(STATUS_ID, str(word_count) + " Words")
 
 	def on_activated_async(self, view):
-		self.do_word_count(view)
+		self.is_active = "text." in view.scope_name(0)
 
-	def on_activated_async(self, view):
+		if not self.is_active:
+			# we're not unloading the plugin,
+			# we're just calling the sublime
+			# callback ourselves because it
+			# does everything we need for this
+			# step. might not always be true!
+			plugin_unloaded()
+			return
+
 		self.do_word_count(view)
 
 	def on_post_save_async(self, view):
+		if not self.is_active:
+			return
+
 		self.do_word_count(view)
 
 	def on_reload_async(self, view):
+		if not self.is_active:
+			return
+
 		self.do_word_count(view)
 
 	# maddeningly moving the caret without an active region selection
 	# also fires this, so we do some extra work to reduce expenditure
 	def on_selection_modified_async(self, view):
+		if not self.is_active:
+			return
+
 		selection_total = 0
 		for selection in view.sel():
 			selection_total += len(selection)
