@@ -56,7 +56,7 @@ class Counter(sublime_plugin.EventListener):
 		view.set_status(STATUS_ID, str(word_count) + " Words")
 
 	def on_activated_async(self, view):
-		self.is_active = "text." in view.scope_name(0)
+		self.is_active = view.window().is_status_bar_visible() and "text." in view.scope_name(0)
 
 		if not self.is_active:
 			# we're not unloading the plugin,
