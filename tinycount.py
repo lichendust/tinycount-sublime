@@ -1,3 +1,4 @@
+import locale
 import sublime
 import sublime_plugin
 
@@ -13,6 +14,10 @@ def plugin_unloaded():
 
 class Counter(sublime_plugin.EventListener):
 	def __init__(self):
+		# we do this to allow thousands separators
+		# to be generated according to the user's locale
+		locale.setlocale(locale.LC_ALL, '')
+
 		self.is_active          = False
 		self.has_selection      = False
 		self.just_had_selection = False
@@ -26,34 +31,23 @@ class Counter(sublime_plugin.EventListener):
 
 		word_count = 0
 
-		# if we're dealing with a selection, loop over 'em all
-		# and count within each individual region.
 		if self.has_selection:
 			for selection in view.sel():
 				if len(selection) > 0:
 					region = sublime.Region(selection.begin(), selection.end())
 					word_count += len(view.substr(region).split())
 
-		# otherwise do the whole thing using the total buffer size
-		# as a region selection.
 		else:
-			for line in view.lines(sublime.Region(0, view_size)):
-				# because scope_name accepts a point instead of a
-				# region, we want to make sure that we're *inside*
-				# the relevant region when we check for a comment.
-				# we do this from the end of the line because most
-				# comments (that we care about) will *run* to the
-				# end of any given line. if we used the start,
-				# we'd have to iterate over any possible whitespace
-				# or indentation before we could be certain.
-				# the line.b > line.a just ensures we don't clip
-				# out of the intended regions on zero-width lines
-				if IGNORE_COMMENTS and line.b > line.a and "comment" in view.scope_name(line.b - 1):
-					continue
+			word_count += len(view.substr(sublime.Region(0, view_size)).split())
 
-				word_count += len(view.substr(line).split())
+			if IGNORE_COMMENTS:
+				comment_count = 0
+				for region in view.find_by_selector("comment"):
+					comment_count += len(view.substr(region).split())
 
-		view.set_status(STATUS_ID, str(word_count) + " Words")
+				word_count -= comment_count
+
+		view.set_status(STATUS_ID, '{:n} Words'.format(word_count))
 
 	def on_activated_async(self, view):
 		self.is_active = view.window().is_status_bar_visible() and "text." in view.scope_name(0)
